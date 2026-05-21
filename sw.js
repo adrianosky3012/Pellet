@@ -1,4 +1,4 @@
-const CACHE_NAME = 'consumi-pellet-v1';
+const CACHE_NAME = 'consumi-pellet-v2';
 const ASSETS = [
   './',
   './index.html',
