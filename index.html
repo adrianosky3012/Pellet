@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consumi Pellet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pellet">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2435;
+    --border: #2a3147;
+    --accent: #f5a623;
+    --accent2: #e8714a;
+    --text: #e8e6df;
+    --muted: #7a8099;
+    --pellet: #c8a96e;
+    --gas: #6eb5c8;
+    --green: #6ec87a;
+    --red: #c86e6e;
+    --tab-h: 48px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .app-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+  }
+  .app-title span { color: var(--muted); font-size: 14px; font-style: italic; }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 64px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .scard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .scard-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .scard-val {
+    font-size: 20px;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+  }
+  .scard-val.pellet { color: var(--pellet); }
+  .scard-val.gas { color: var(--gas); }
+  .scard-val.total { color: var(--accent); }
+  .scard-val.sacchi { color: var(--green); }
+
+  /* ── Section headings ── */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-head {
+    background: var(--surface2);
+    padding: 10px 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-head .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .dot.p { background: var(--pellet); }
+  .dot.g { background: var(--gas); }
+  .dot.s { background: var(--green); }
+  .dot.r { background: var(--accent); }
+
+  /* ── Pellet config ── */
+  .pellet-config {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 16px;
+  }
+  .config-group { display: flex; flex-direction: column; gap: 8px; }
+  .config-group label { font-size: 11px; color: var(--muted); }
+
+  .row-inputs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field-group label { font-size: 10px; color: var(--muted); }
+
+  input[type=number], input[type=text] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 6px 10px;
+    width: 100px;
+    transition: border-color 0.2s;
+  }
+  input[type=number]:focus, input[type=text]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  input.wide { width: 140px; }
+  input.narrow { width: 72px; }
+
+  /* ── Monthly grid ── */
+  .scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .months-grid {
+    display: grid;
+    grid-template-columns: 160px repeat(6, minmax(90px, 1fr));
+    gap: 0;
+    min-width: 560px;
+  }
+  .mg-header {
+    display: contents;
+  }
+  .mg-header > div {
+    background: var(--surface2);
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .mg-header > div:first-child { text-align: left; }
+
+  .mg-row {
+    display: contents;
+  }
+  .mg-row > div {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+  }
+  .mg-row > div:first-child {
+    text-align: left;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .mg-row.total > div {
+    background: var(--surface2);
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .mg-row.sub > div { color: var(--muted); font-size: 11px; }
+
+  /* ── Day grid ── */
+  .day-grid-wrap { padding: 16px; overflow-x: auto; }
+  .day-grid {
+    display: grid;
+    grid-template-columns: 36px repeat(6, 1fr);
+    gap: 3px;
+    min-width: 400px;
+  }
+  .dg-header {
+    display: contents;
+  }
+  .dg-header > div {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    padding: 4px 2px;
+    background: var(--surface2);
+    border-radius: 4px;
+  }
+  .dg-row { display: contents; }
+  .dg-row > .day-num {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dg-row > .day-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .day-cb {
+    width: 22px; height: 22px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .day-cb:checked {
+    background: var(--pellet);
+    border-color: var(--pellet);
+  }
+  .day-cb:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px; top: 3px;
+    width: 5px; height: 9px;
+    border: 2px solid #0f1117;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+  .day-cb:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+  }
+
+  /* ── Ore accensione ── */
+  .orario-grid {
+    display: grid;
+    grid-template-columns: 120px repeat(6, minmax(100px, 1fr));
+    gap: 4px;
+    padding: 12px 16px;
+    min-width: 560px;
+  }
+  .orario-label {
+    color: var(--muted);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+  }
+  .orario-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 7px;
+    width: 100%;
+  }
+  .orario-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Gas section ── */
+  .gas-grid {
+    display: grid;
+    grid-template-columns: 150px repeat(6, minmax(90px, 1fr));
+    gap: 0;
+    padding: 0;
+    min-width: 560px;
+  }
+  .gas-row { display: contents; }
+  .gas-row > div {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+  }
+  .gas-row > div:first-child {
+    text-align: left;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .gas-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--gas);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 6px;
+    width: 90%;
+    text-align: center;
+  }
+  .gas-input:focus { outline: none; border-color: var(--gas); }
+  .gas-calc { color: var(--gas); font-size: 12px; }
+
+  /* ── Pellet stock ── */
+  .stock-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+  .stock-item { display: flex; flex-direction: column; gap: 4px; }
+  .stock-item label { font-size: 11px; color: var(--muted); }
+  .stock-item input { width: 100%; }
+
+  /* ── Gas costs table (euro/mq) ── */
+  .costs-table { padding: 16px; overflow-x: auto; }
+  table.ctable {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 500px;
+  }
+  .ctable th {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctable td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .ctable td input {
+    width: 100px;
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+  .ctable .calc-td { color: var(--accent); }
+  .ctable .add-row-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .ctable .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .del-row-btn {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+  .del-row-btn:hover { opacity: 1; }
+
+  /* ── Media consumi ── */
+  .media-grid {
+    display: grid;
+    grid-template-columns: 220px repeat(6, 1fr);
+    gap: 0;
+  }
+  .media-row { display: contents; }
+  .media-row > div {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .media-row > div:first-child { text-align: left; }
+  .media-row.val > div { color: var(--text); }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .stock-grid { grid-template-columns: 1fr 1fr; }
+    .summary-bar { grid-template-columns: 1fr 1fr; }
+  }
+
+  .hidden { display: none !important; }
+
+  /* floating save indicator */
+  #save-toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--green);
+    color: #0f1117;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  #save-toast.show { opacity: 1; }
+
+  .info-note {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 8px 16px 12px;
+    font-style: italic;
+  }
+
+  .calc-display {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--pellet);
+    font-size: 13px;
+    padding: 6px 10px;
+    min-width: 80px;
+    white-space: nowrap;
+  }
+
+  .calc-display-wide {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--pellet);
+    font-size: 12px;
+    padding: 6px 12px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.6;
+  }
+
+  /* ── Toolbar (salva/carica/drive) ── */
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 0 14px;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .tbtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 13px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .tbtn.drive { border-color: #4285f4; color: #4285f4; }
+  .tbtn.drive:hover { background: rgba(66,133,244,0.1); }
+  .tbtn.export { border-color: var(--green); color: var(--green); }
+  .tbtn.export:hover { background: rgba(110,200,122,0.1); }
+  .tbtn.backup { border-color: var(--accent2); color: var(--accent2); }
+  .tbtn.backup:hover { background: rgba(232,113,74,0.1); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+  }
+  .modal h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-size: 18px;
+  }
+  .modal p { color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 16px; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .mbtn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    transition: all 0.2s;
+  }
+  .mbtn.primary { border-color: var(--accent); color: var(--accent); }
+  .mbtn:hover { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-title">🔥 Consumi Pellet <span>— tracker spese invernali</span></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="toolbar">
+    <button class="tbtn export" onclick="exportJSON()">⬇ Esporta JSON</button>
+    <button class="tbtn import" onclick="document.getElementById('import-file').click()">⬆ Importa JSON</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+    <button class="tbtn drive" onclick="showDriveModal()">☁ Google Drive</button>
+    <button class="tbtn backup" onclick="backupNow()">💾 Salva Backup</button>
+  </div>
+</header>
+
+<div class="main" id="main"></div>
+
+<div id="save-toast">✓ Salvato</div>
+
+<div id="drive-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>☁ Google Drive</h3>
+    <p>Salva o carica i tuoi dati su Google Drive. Il file si chiamerà <strong>consumi_pellet.json</strong>.</p>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Google OAuth Client ID</label>
+      <input id="drive-client-id" type="text"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:monospace;font-size:11px;padding:7px 10px;"
+        placeholder="xxxxx.apps.googleusercontent.com"
+        oninput="saveClientId(this.value)">
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">
+        Il Client ID viene salvato localmente e non viene mai inviato a nessuno.
+      </div>
+    </div>
+    <div id="drive-status" style="font-size:12px;margin-bottom:12px;min-height:18px"></div>
+    <div class="modal-btns">
+      <button class="mbtn" onclick="hideDriveModal()">Chiudi</button>
+      <button class="mbtn primary" onclick="driveLoad()">⬇ Carica da Drive</button>
+      <button class="mbtn primary" onclick="driveSave()">⬆ Salva su Drive</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const YEARS = [2027,2028,2029,2030,2031,2032,2033,2034];
+const MONTHS = ['Ottobre','Novembre','Dicembre','Gennaio','Febbraio','Marzo'];
+const MONTH_DAYS = [31,30,31,31,28,31]; // days per month (Feb variable but start simple)
+
+// ── State ──────────────────────────────────────────────────────────────────
+function defaultYear(y) {
+  return {
+    costoPellet: 6.31,
+    pelletAbete: { sacchi: 0, prezzo: 6.7 },
+    pelletMisto: { sacchi: 0, prezzo: 5.1 },
+    // day matrix: 6 months × 31 days, 1 = sacco usato, 0 = no, -1 = non esiste
+    days: buildDayMatrix(),
+    gas: {
+      pagare: [0,0,0,0,0,0],
+      smc:    [0,0,0,0,0,0],
+    },
+    orari: ['','','','','',''],
+    orari2: ['','','','','',''],
+    euroMq: 1.34,
+    costsRows: [
+      { dal: '', al: '', giorni: 0, consumo: 0, note: '' },
+    ],
+    anno: y,
+  };
+}
+
+function buildDayMatrix() {
+  // 6 months, each 31 slots
+  return Array.from({length:6}, () => Array(31).fill(0));
+}
+
+function isDayValid(monthIdx, dayIdx) {
+  // dayIdx is 0-based
+  const days = [31,30,31,31,28,31];
+  return dayIdx < days[monthIdx];
+}
+
+// Load or init state
+function loadState() {
+  try {
+    const s = localStorage.getItem('consumi_pellet_v2');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  const state = {};
+  YEARS.forEach(y => { state[y] = defaultYear(y); });
+  return state;
+}
+
+let state = loadState();
+
+function saveState() {
+  try { localStorage.setItem('consumi_pellet_v2', JSON.stringify(state)); } catch(e){}
+  const toast = document.getElementById('save-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1200);
+}
+
+// ── Calculations ────────────────────────────────────────────────────────────
+function calcYear(y) {
+  const d = state[y];
+  const months = MONTHS.map((_,mi) => {
+    const col = d.days[mi];
+    const q1 = col.slice(0,15).reduce((s,v) => s + (isDayValid(mi,s) ? (v>0?1:0) : 0), 0);
+    // more careful count
+    let cnt1 = 0, cnt2 = 0, cntTotal = 0;
+    for (let di=0; di<31; di++) {
+      if (!isDayValid(mi,di)) continue;
+      if (col[di] > 0) {
+        cntTotal++;
+        if (di < 15) cnt1++; else cnt2++;
+      }
+    }
+    const kg1 = cnt1 * 15;
+    const kg2 = cnt2 * 15;
+    const kgTot = cntTotal * 15;
+    const spesa1 = cnt1 * d.costoPellet;
+    const spesa2 = cnt2 * d.costoPellet;
+    const spesaTot = cntTotal * d.costoPellet;
+    const numDays = [31,30,31,31,28,31][mi];
+    const avgKgDay = numDays > 0 ? kgTot / numDays : 0;
+    const avgSpesaDay = numDays > 0 ? spesaTot / numDays : 0;
+    return { cnt1, cnt2, cntTotal, kg1, kg2, kgTot, spesa1, spesa2, spesaTot, avgKgDay, avgSpesaDay };
+  });
+
+  const totalPelletSacchi = months.reduce((s,m) => s+m.cntTotal, 0);
+  const totalPelletKg = totalPelletSacchi * 15;
+  const totalPelletSpesa = months.reduce((s,m) => s+m.spesaTot, 0);
+  const totalGasSpesa = d.gas.pagare.reduce((a,b) => a + (parseFloat(b)||0), 0);
+  const totalSpese = totalPelletSpesa + totalGasSpesa;
+
+  // stock
+  const totalStock = (parseInt(d.pelletAbete.sacchi)||0) + (parseInt(d.pelletMisto.sacchi)||0);
+  const sacchiDisp = totalStock - totalPelletSacchi;
+
+  // costs table
+  const costsRows = (d.costsRows || []).map(r => {
+    const consumo = parseFloat(r.consumo) || 0;
+    const spesa = consumo * (parseFloat(d.euroMq) || 0);
+    return { ...r, spesa };
+  });
+  const costsSum = costsRows.slice(0,5).reduce((s,r) => s + r.spesa, 0);
+
+  return { months, totalPelletSacchi, totalPelletKg, totalPelletSpesa,
+           totalGasSpesa, totalSpese, sacchiDisp, totalStock, costsRows, costsSum };
+}
+
+// ── Render ──────────────────────────────────────────────────────────────────
+let activeYear = YEARS[0];
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = YEARS.map(y =>
+    `<button class="tab-btn ${y===activeYear?'active':''}" onclick="switchTab(${y})">${y}</button>`
+  ).join('');
+}
+
+function switchTab(y) {
+  activeYear = y;
+  renderTabs();
+  renderMain();
+}
+
+function fmt(n, dec=2) {
+  return (Math.round(n * 100)/100).toLocaleString('it-IT', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+
+function renderMain() {
+  const y = activeYear;
+  const d = state[y];
+  const c = calcYear(y);
+  const main = document.getElementById('main');
+
+  main.innerHTML = `
+    <!-- Summary -->
+    <div class="summary-bar">
+      <div class="scard">
+        <div class="scard-label">Spese Totali ${y}</div>
+        <div class="scard-val total">€ ${fmt(c.totalSpese)}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Totale Pellet</div>
+        <div class="scard-val pellet">€ ${fmt(c.totalPelletSpesa)}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Totale Gas</div>
+        <div class="scard-val gas">€ ${fmt(c.totalGasSpesa)}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Sacchi usati / disp.</div>
+        <div class="scard-val sacchi">${c.totalPelletSacchi} / ${c.sacchiDisp}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Kg Pellet Totali</div>
+        <div class="scard-val pellet">${c.totalPelletKg} kg</div>
+      </div>
+    </div>
+
+    <!-- Pellet Config -->
+    <div class="section">
+      <div class="section-head"><span class="dot p"></span> Configurazione Pellet ${y}</div>
+      <div class="pellet-config">
+        <div class="config-group">
+          <label>Costo Pellet al sacco (€)</label>
+          <input type="number" step="0.01" value="${d.costoPellet}"
+            onchange="updateField(${y},'costoPellet',parseFloat(this.value))">
+        </div>
+        <div class="config-group">
+          <label>Pellet Abete</label>
+          <div class="row-inputs">
+            <div class="field-group">
+              <label>Sacchi</label>
+              <input type="number" class="narrow" value="${d.pelletAbete.sacchi}"
+                onchange="updateNested(${y},'pelletAbete','sacchi',parseInt(this.value))">
+            </div>
+            <div class="field-group">
+              <label>€/sacco</label>
+              <input type="number" step="0.01" class="narrow" value="${d.pelletAbete.prezzo}"
+                onchange="updateNested(${y},'pelletAbete','prezzo',parseFloat(this.value))">
+            </div>
+            <div class="field-group">
+              <label>Costo tot.</label>
+              <div class="calc-display">€ ${fmt(d.pelletAbete.sacchi * d.pelletAbete.prezzo)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="config-group">
+          <label>Pellet Misto</label>
+          <div class="row-inputs">
+            <div class="field-group">
+              <label>Sacchi</label>
+              <input type="number" class="narrow" value="${d.pelletMisto.sacchi}"
+                onchange="updateNested(${y},'pelletMisto','sacchi',parseInt(this.value))">
+            </div>
+            <div class="field-group">
+              <label>€/sacco</label>
+              <input type="number" step="0.01" class="narrow" value="${d.pelletMisto.prezzo}"
+                onchange="updateNested(${y},'pelletMisto','prezzo',parseFloat(this.value))">
+            </div>
+            <div class="field-group">
+              <label>Costo tot.</label>
+              <div class="calc-display">€ ${fmt(d.pelletMisto.sacchi * d.pelletMisto.prezzo)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="config-group" style="width:100%">
+          <label>Totale sacchi acquistati</label>
+          <div class="calc-display-wide">
+            ${(parseInt(d.pelletAbete.sacchi)||0)+(parseInt(d.pelletMisto.sacchi)||0)} sacchi
+            &nbsp;|&nbsp; prezzo medio: € ${fmt(((d.pelletAbete.sacchi*d.pelletAbete.prezzo)+(d.pelletMisto.sacchi*d.pelletMisto.prezzo))/Math.max(1,(parseInt(d.pelletAbete.sacchi)||0)+(parseInt(d.pelletMisto.sacchi)||0)))}/sacco
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Riepilogo mensile pellet -->
+    <div class="section">
+      <div class="section-head"><span class="dot p"></span> Riepilogo Mensile Pellet</div>
+      <div class="scroll-wrap">
+      <div class="months-grid">
+        <div class="mg-header">
+          <div></div>
+          ${MONTHS.map(m=>`<div>${m}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>1° quindicina sacchi</div>
+          ${c.months.map(m=>`<div>${m.cnt1}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>2° quindicina sacchi</div>
+          ${c.months.map(m=>`<div>${m.cnt2}</div>`).join('')}
+        </div>
+        <div class="mg-row total">
+          <div>Totale sacchi</div>
+          ${c.months.map(m=>`<div>${m.cntTotal}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>1° quindicina kg</div>
+          ${c.months.map(m=>`<div>${m.kg1}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>2° quindicina kg</div>
+          ${c.months.map(m=>`<div>${m.kg2}</div>`).join('')}
+        </div>
+        <div class="mg-row total">
+          <div>Totale kg</div>
+          ${c.months.map(m=>`<div>${m.kgTot}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>1° quindicina spesa</div>
+          ${c.months.map(m=>`<div>€ ${fmt(m.spesa1)}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>2° quindicina spesa</div>
+          ${c.months.map(m=>`<div>€ ${fmt(m.spesa2)}</div>`).join('')}
+        </div>
+        <div class="mg-row total">
+          <div>Totale spesa pellet</div>
+          ${c.months.map(m=>`<div>€ ${fmt(m.spesaTot)}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>Media kg/giorno</div>
+          ${c.months.map(m=>`<div>${fmt(m.avgKgDay,2)}</div>`).join('')}
+        </div>
+        <div class="mg-row sub">
+          <div>Media €/giorno</div>
+          ${c.months.map(m=>`<div>€ ${fmt(m.avgSpesaDay,2)}</div>`).join('')}
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Griglia giornaliera sacchi -->
+    <div class="section">
+      <div class="section-head"><span class="dot p"></span> Registro Giornaliero Sacchi Pellet</div>
+      <div class="info-note">✓ = sacco usato quel giorno (1 sacco = 15 kg)</div>
+      <div class="day-grid-wrap">
+        <div class="day-grid" id="daygrid-${y}">
+          <div class="dg-header">
+            <div>GG</div>
+            ${MONTHS.map(m=>`<div>${m.substring(0,3)}</div>`).join('')}
+          </div>
+          ${buildDayGridRows(y, d)}
+        </div>
+      </div>
+    </div>
+
+    <!-- Ore accensione stufa -->
+    <div class="section">
+      <div class="section-head"><span class="dot p"></span> Orari Accensione Stufa</div>
+      <div class="scroll-wrap">
+      <div class="orario-grid">
+        <div class="orario-label">Fascia 1</div>
+        ${MONTHS.map((_,mi) => `<input class="orario-input" type="text" value="${d.orari[mi]||''}"
+          placeholder="es. 05:30-20:00"
+          onchange="updateArrayField(${y},'orari',${mi},this.value)">`).join('')}
+        <div class="orario-label">Fascia 2</div>
+        ${MONTHS.map((_,mi) => `<input class="orario-input" type="text" value="${d.orari2[mi]||''}"
+          placeholder="es. 16:30-20:30"
+          onchange="updateArrayField(${y},'orari2',${mi},this.value)">`).join('')}
+      </div>
+      </div>
+    </div>
+
+    <!-- Gas -->
+    <div class="section">
+      <div class="section-head"><span class="dot g"></span> Consumi Gas ${y}</div>
+      <div class="scroll-wrap">
+      <div class="gas-grid">
+        <div class="gas-row">
+          <div></div>
+          ${MONTHS.map(m=>`<div style="color:var(--muted);font-size:11px;text-align:center">${m}</div>`).join('')}
+        </div>
+        <div class="gas-row">
+          <div>Totale da Pagare (€)</div>
+          ${MONTHS.map((_,mi)=>`<div>
+            <input class="gas-input" type="number" step="0.01" value="${d.gas.pagare[mi]||''}"
+              onchange="updateGas(${y},'pagare',${mi},parseFloat(this.value)||0)">
+          </div>`).join('')}
+        </div>
+        <div class="gas-row">
+          <div>Smc</div>
+          ${MONTHS.map((_,mi)=>`<div>
+            <input class="gas-input" type="number" step="1" value="${d.gas.smc[mi]||''}"
+              onchange="updateGas(${y},'smc',${mi},parseFloat(this.value)||0)">
+          </div>`).join('')}
+        </div>
+        <div class="gas-row">
+          <div>Costo al Smc (€)</div>
+          ${MONTHS.map((_,mi)=>{
+            const p = parseFloat(d.gas.pagare[mi])||0;
+            const s = parseFloat(d.gas.smc[mi])||1;
+            const costo = s===0 ? 0 : p/s;
+            return `<div class="gas-calc">${fmt(costo,4)}</div>`;
+          }).join('')}
+        </div>
+        <div class="mg-row total" style="display:contents">
+          <div style="padding:8px 10px;background:var(--surface2);font-size:11px;color:var(--muted)">Totale Gas</div>
+          ${MONTHS.map((_,mi)=>{
+            const tot = parseFloat(d.gas.pagare[mi])||0;
+            return `<div style="padding:8px 10px;background:var(--surface2);color:var(--gas);text-align:center">€ ${fmt(tot)}</div>`;
+          }).join('')}
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- Euro al MQ (costi gas annui) -->
+    <div class="section">
+      <div class="section-head"><span class="dot r"></span> Costi Gas (€/Smc) — Storico</div>
+      <div class="pellet-config">
+        <div class="config-group">
+          <label>Euro al Smc (riferimento)</label>
+          <input type="number" step="0.01" value="${d.euroMq||1.34}"
+            onchange="updateField(${y},'euroMq',parseFloat(this.value))">
+        </div>
+      </div>
+      <div class="costs-table">
+        <table class="ctable">
+          <tr>
+            <th>Dal</th><th>Al</th><th>Giorni</th><th>Consumo (smc)</th><th>Media gg</th><th>Spesa (€)</th><th>Note</th><th></th>
+          </tr>
+          <tbody id="costs-tbody-${y}">
+            ${renderCostRows(y, d, c)}
+          </tbody>
+        </table>
+        <button class="add-row-btn" onclick="addCostRow(${y})">+ Aggiungi riga</button>
+      </div>
+    </div>
+  `;
+}
+
+function buildDayGridRows(y, d) {
+  let html = '';
+  for (let day=0; day<31; day++) {
+    html += `<div class="dg-row">
+      <div class="day-num">${day+1}</div>
+      ${MONTHS.map((_,mi) => {
+        const valid = isDayValid(mi, day);
+        const checked = valid && d.days[mi][day] > 0 ? 'checked' : '';
+        const disabled = !valid ? 'disabled' : '';
+        return `<div class="day-cell">
+          <input type="checkbox" class="day-cb" ${checked} ${disabled}
+            onchange="toggleDay(${y},${mi},${day},this.checked)">
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+  return html;
+}
+
+function renderCostRows(y, d, c) {
+  return (d.costsRows || []).map((r, ri) => {
+    const consumo = parseFloat(r.consumo) || 0;
+    const giorni = parseFloat(r.giorni) || 0;
+    const media = giorni > 0 ? (consumo / giorni).toFixed(4) : '—';
+    const spesa = consumo * (parseFloat(d.euroMq) || 0);
+    return `<tr>
+      <td><input type="text" value="${r.dal||''}" placeholder="01/10/${y}"
+        onchange="updateCostRow(${y},${ri},'dal',this.value)"></td>
+      <td><input type="text" value="${r.al||''}" placeholder="31/10/${y}"
+        onchange="updateCostRow(${y},${ri},'al',this.value)"></td>
+      <td><input type="number" value="${r.giorni||''}"
+        onchange="updateCostRow(${y},${ri},'giorni',parseFloat(this.value)||0)"></td>
+      <td><input type="number" step="0.01" value="${r.consumo||''}"
+        onchange="updateCostRow(${y},${ri},'consumo',parseFloat(this.value)||0)"></td>
+      <td class="calc-td">${media}</td>
+      <td class="calc-td">€ ${fmt(spesa)}</td>
+      <td><input type="text" value="${r.note||''}" placeholder="note"
+        onchange="updateCostRow(${y},${ri},'note',this.value)"></td>
+      <td><button class="del-row-btn" onclick="delCostRow(${y},${ri})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Event handlers ──────────────────────────────────────────────────────────
+function updateField(y, key, val) {
+  state[y][key] = val;
+  saveState();
+  renderMain();
+}
+
+function updateNested(y, obj, key, val) {
+  state[y][obj][key] = val;
+  saveState();
+  renderMain();
+}
+
+function updateArrayField(y, arr, idx, val) {
+  state[y][arr][idx] = val;
+  saveState();
+}
+
+function updateGas(y, field, mi, val) {
+  state[y].gas[field][mi] = val;
+  saveState();
+  renderMain();
+}
+
+function toggleDay(y, mi, day, checked) {
+  state[y].days[mi][day] = checked ? 1 : 0;
+  saveState();
+  // Update summary only (avoid full re-render which resets checkboxes)
+  const c = calcYear(y);
+  updateSummaryBar(y, c);
+  updateMonthlySection(y, c);
+}
+
+function updateSummaryBar(y, c) {
+  // Quick partial update without full re-render
+  renderMain();
+}
+
+function updateMonthlySection() { /* handled by renderMain */ }
+
+function addCostRow(y) {
+  state[y].costsRows = state[y].costsRows || [];
+  state[y].costsRows.push({ dal:'', al:'', giorni:0, consumo:0, note:'' });
+  saveState();
+  renderMain();
+}
+
+function delCostRow(y, ri) {
+  state[y].costsRows.splice(ri, 1);
+  saveState();
+  renderMain();
+}
+
+function updateCostRow(y, ri, key, val) {
+  state[y].costsRows[ri][key] = val;
+  saveState();
+  // partial refresh of costs table
+  const d = state[y];
+  const c = calcYear(y);
+  const tbody = document.getElementById(`costs-tbody-${y}`);
+  if (tbody) tbody.innerHTML = renderCostRows(y, d, c);
+}
+
+// ── Export / Import JSON ────────────────────────────────────────────────────
+function exportJSON() {
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `consumi_pellet_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function backupNow() {
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const now = new Date();
+  const ts = now.toISOString().slice(0,16).replace('T','_').replace(':','h').replace(':','m');
+  const filename = `backup_pellet_${ts}.json`;
+
+  // Prova il metodo moderno (funziona su Android Chrome)
+  if (window.showSaveFilePicker) {
+    window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+    }).then(handle => handle.createWritable()).then(writable => {
+      writable.write(blob);
+      return writable.close();
+    }).then(() => {
+      showToast('💾 Backup salvato!');
+    }).catch(e => {
+      if (e.name !== 'AbortError') fallbackDownload(blob, filename);
+    });
+  } else {
+    fallbackDownload(blob, filename);
+  }
+}
+
+function fallbackDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 Backup scaricato!');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('save-toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => {
+    toast.classList.remove('show');
+    toast.textContent = '✓ Salvato';
+  }, 2000);
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Validate: deve avere almeno una delle chiavi degli anni
+      const hasYear = YEARS.some(y => data[y]);
+      if (!hasYear) { alert('File non valido: nessun anno trovato.'); return; }
+      state = data;
+      // Fill missing years
+      YEARS.forEach(y => {
+        if (!state[y]) state[y] = defaultYear(y);
+      });
+      saveState();
+      renderMain();
+      alert('✓ Dati importati correttamente!');
+    } catch(err) {
+      alert('Errore nella lettura del file JSON.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // reset input
+}
+
+// ── Google Drive ────────────────────────────────────────────────────────────
+const DRIVE_FILE_NAME = 'consumi_pellet.json';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+let driveToken = null;
+
+function saveClientId(val) {
+  localStorage.setItem('drive_client_id', val.trim());
+  driveToken = null; // reset token se cambia ID
+}
+
+function getClientId() {
+  return localStorage.getItem('drive_client_id') || '';
+}
+
+function showDriveModal() {
+  document.getElementById('drive-modal').style.display = 'flex';
+  document.getElementById('drive-client-id').value = getClientId();
+  setDriveStatus('');
+}
+function hideDriveModal() {
+  document.getElementById('drive-modal').style.display = 'none';
+}
+function setDriveStatus(msg, color) {
+  const el = document.getElementById('drive-status');
+  el.textContent = msg;
+  el.style.color = color || 'var(--muted)';
+}
+
+async function getDriveToken() {
+  return new Promise((resolve, reject) => {
+    if (!window.google) {
+      reject(new Error('Google API non caricata. Riprova tra un secondo.'));
+      return;
+    }
+    const clientId = getClientId();
+    if (!clientId) {
+      reject(new Error('Inserisci il Client ID prima di continuare.'));
+      return;
+    }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp.error) reject(new Error(resp.error));
+        else resolve(resp.access_token);
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function driveGetFileId(token) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}'+and+trashed=false&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  return data.files && data.files.length > 0 ? data.files[0].id : null;
+}
+
+async function driveSave() {
+  setDriveStatus('Connessione a Google...', 'var(--muted)');
+  try {
+    const token = driveToken || (driveToken = await getDriveToken());
+    setDriveStatus('Salvataggio...', 'var(--muted)');
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const fileId = await driveGetFileId(token);
+    let url, method;
+    if (fileId) {
+      url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
+      method = 'PATCH';
+    } else {
+      // Create with metadata
+      const meta = new Blob([JSON.stringify({ name: DRIVE_FILE_NAME })], { type: 'application/json' });
+      const form = new FormData();
+      form.append('metadata', meta);
+      form.append('file', blob);
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form
+      });
+      const data = await res.json();
+      if (data.id) setDriveStatus('✓ Salvato su Drive!', 'var(--green)');
+      else setDriveStatus('Errore nel salvataggio.', 'var(--red)');
+      return;
+    }
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: blob
+    });
+    if (res.ok) setDriveStatus('✓ Salvato su Drive!', 'var(--green)');
+    else setDriveStatus('Errore nel salvataggio.', 'var(--red)');
+  } catch(e) {
+    driveToken = null;
+    setDriveStatus('Errore: ' + e.message, 'var(--red)');
+  }
+}
+
+async function driveLoad() {
+  setDriveStatus('Connessione a Google...', 'var(--muted)');
+  try {
+    const token = driveToken || (driveToken = await getDriveToken());
+    setDriveStatus('Ricerca file...', 'var(--muted)');
+    const fileId = await driveGetFileId(token);
+    if (!fileId) { setDriveStatus('Nessun file trovato su Drive.', 'var(--pellet)'); return; }
+    setDriveStatus('Download...', 'var(--muted)');
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const hasYear = YEARS.some(y => data[y]);
+    if (!hasYear) { setDriveStatus('File non valido.', 'var(--red)'); return; }
+    state = data;
+    YEARS.forEach(y => { if (!state[y]) state[y] = defaultYear(y); });
+    saveState();
+    renderMain();
+    setDriveStatus('✓ Dati caricati da Drive!', 'var(--green)');
+  } catch(e) {
+    driveToken = null;
+    setDriveStatus('Errore: ' + e.message, 'var(--red)');
+  }
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+YEARS.forEach(y => {
+  if (!state[y]) state[y] = defaultYear(y);
+  // Ensure all required fields exist (backward compat)
+  if (!state[y].days) state[y].days = buildDayMatrix();
+  if (!state[y].gas) state[y].gas = { pagare:[0,0,0,0,0,0], smc:[0,0,0,0,0,0] };
+  if (!state[y].orari) state[y].orari = ['','','','','',''];
+  if (!state[y].orari2) state[y].orari2 = ['','','','','',''];
+  if (!state[y].costsRows) state[y].costsRows = [];
+  if (!state[y].euroMq) state[y].euroMq = 1.34;
+  if (!state[y].pelletAbete) state[y].pelletAbete = { sacchi:0, prezzo:6.7 };
+  if (!state[y].pelletMisto) state[y].pelletMisto = { sacchi:0, prezzo:5.1 };
+});
+
+renderTabs();
+renderMain();
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
