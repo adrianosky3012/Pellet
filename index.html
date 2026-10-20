@@ -617,7 +617,7 @@ let activeYear = YEARS[0];
 function renderTabs() {
   const el = document.getElementById('tabs');
   el.innerHTML = YEARS.map(y =>
-    `<button class="tab-btn ${y===activeYear?'active':''}" onclick="switchTab(${y})">${y}</button>`
+    `<button class="tab-btn ${y===activeYear?'active':''}" onclick="switchTab(${y})">${seasonLabel(y)}</button>`
   ).join('');
 }
 
@@ -625,6 +625,10 @@ function switchTab(y) {
   activeYear = y;
   renderTabs();
   renderMain();
+}
+
+function seasonLabel(y) {
+  return `${y-1}/${String(y).slice(-2)}`;
 }
 
 function fmt(n, dec=2) {
@@ -641,7 +645,7 @@ function renderMain() {
     <!-- Summary -->
     <div class="summary-bar">
       <div class="scard">
-        <div class="scard-label">Spese Totali ${y}</div>
+        <div class="scard-label">Spese Totali ${seasonLabel(y)}</div>
         <div class="scard-val total">€ ${fmt(c.totalSpese)}</div>
       </div>
       <div class="scard">
@@ -664,7 +668,7 @@ function renderMain() {
 
     <!-- Pellet Config -->
     <div class="section">
-      <div class="section-head"><span class="dot p"></span> Configurazione Pellet ${y}</div>
+      <div class="section-head"><span class="dot p"></span> Configurazione Pellet ${seasonLabel(y)}</div>
       <div class="pellet-config">
         <div class="config-group">
           <label>Costo Pellet al sacco (€)</label>
@@ -807,7 +811,7 @@ function renderMain() {
 
     <!-- Gas -->
     <div class="section">
-      <div class="section-head"><span class="dot g"></span> Consumi Gas ${y}</div>
+      <div class="section-head"><span class="dot g"></span> Consumi Gas ${seasonLabel(y)}</div>
       <div class="gas-grid">
         <div class="gas-row">
           <div></div>
@@ -897,9 +901,9 @@ function renderCostRows(y, d, c) {
     const media = giorni > 0 ? (consumo / giorni).toFixed(4) : '—';
     const spesa = consumo * (parseFloat(d.euroMq) || 0);
     return `<tr>
-      <td><input type="text" value="${r.dal||''}" placeholder="01/10/${y}"
+      <td><input type="text" value="${r.dal||''}" placeholder="01/10/${y-1}"
         onchange="updateCostRow(${y},${ri},'dal',this.value)"></td>
-      <td><input type="text" value="${r.al||''}" placeholder="31/10/${y}"
+      <td><input type="text" value="${r.al||''}" placeholder="31/10/${y-1}"
         onchange="updateCostRow(${y},${ri},'al',this.value)"></td>
       <td><input type="number" value="${r.giorni||''}"
         onchange="updateCostRow(${y},${ri},'giorni',parseFloat(this.value)||0)"></td>
