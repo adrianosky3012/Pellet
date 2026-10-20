@@ -192,8 +192,10 @@
   /* ── Monthly grid ── */
   .months-grid {
     display: grid;
-    grid-template-columns: 160px repeat(6, 1fr);
+    grid-template-columns: 160px repeat(6, minmax(78px, 1fr));
     gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .mg-header {
     display: contents;
@@ -305,9 +307,11 @@
   /* ── Ore accensione ── */
   .orario-grid {
     display: grid;
-    grid-template-columns: 160px repeat(6, 1fr);
+    grid-template-columns: 160px repeat(6, minmax(104px, 1fr));
     gap: 4px;
     padding: 12px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .orario-label {
     color: var(--muted);
@@ -330,9 +334,11 @@
   /* ── Gas section ── */
   .gas-grid {
     display: grid;
-    grid-template-columns: 180px repeat(6, 1fr);
+    grid-template-columns: 180px repeat(6, minmax(84px, 1fr));
     gap: 0;
     padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .gas-row { display: contents; }
   .gas-row > div {
@@ -440,8 +446,9 @@
 
   /* ── Responsive ── */
   @media (max-width: 600px) {
-    .months-grid { grid-template-columns: 110px repeat(6, 1fr); font-size: 11px; }
-    .gas-grid { grid-template-columns: 120px repeat(6, 1fr); font-size: 11px; }
+    .months-grid { grid-template-columns: 110px repeat(6, minmax(78px, 1fr)); font-size: 11px; }
+    .gas-grid { grid-template-columns: 120px repeat(6, minmax(84px, 1fr)); font-size: 11px; }
+    .orario-grid { grid-template-columns: 80px repeat(6, minmax(104px, 1fr)); }
     .media-grid { grid-template-columns: 150px repeat(6, 1fr); }
     .stock-grid { grid-template-columns: 1fr 1fr; }
     .summary-bar { grid-template-columns: 1fr 1fr; }
