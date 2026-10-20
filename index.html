@@ -58,6 +58,20 @@
     margin-bottom: 14px;
   }
   .app-title span { color: var(--muted); font-size: 14px; font-style: italic; }
+  .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .title-row .app-title { margin-bottom: 0; }
+  .header-actions { display: flex; gap: 8px; }
+  .hbtn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .hbtn:hover { border-color: var(--accent); color: var(--accent); }
 
   .tabs {
     display: flex;
@@ -484,7 +498,15 @@
 <body>
 
 <header>
-  <div class="app-title">🔥 Consumi Pellet <span>— tracker spese invernali</span></div>
+  <div class="title-row">
+    <div class="app-title">🔥 Consumi Pellet <span>— tracker spese invernali</span></div>
+    <div class="header-actions">
+      <button class="hbtn" onclick="exportBackup()">💾 Salva backup</button>
+      <button class="hbtn" onclick="startRestore()">📂 Ripristina</button>
+      <button class="hbtn" id="btn-folder" style="display:none" onclick="pickBackupDir().catch(()=>{})">📁 Cartella</button>
+      <input type="file" id="restore-file" accept=".json,application/json" class="hidden" onchange="importBackup(this)">
+    </div>
+  </div>
   <div class="tabs" id="tabs"></div>
 </header>
 
@@ -982,6 +1004,7 @@ function updateCostRow(y, ri, key, val) {
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────
+function ensureState() {
 YEARS.forEach(y => {
   if (!state[y]) state[y] = defaultYear(y);
   // Ensure all required fields exist (backward compat)
@@ -994,9 +1017,154 @@ YEARS.forEach(y => {
   if (!state[y].pelletAbete) state[y].pelletAbete = { sacchi:0, prezzo:6.7 };
   if (!state[y].pelletMisto) state[y].pelletMisto = { sacchi:0, prezzo:5.1 };
 });
+}
+ensureState();
+
+// ── Backup / Ripristino ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('save-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Salvato'; }, 2200);
+}
+
+// Cartella di backup (PC con Chrome/Edge): si sceglie una volta, es.
+// G:\Il mio Drive\Documenti\Pellet\Backup ; il browser la ricorda.
+const FS_OK = 'showDirectoryPicker' in window;
+
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('consumi-pellet-fs', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('h');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(k) {
+  const db = await idb();
+  return new Promise(res => {
+    const q = db.transaction('h').objectStore('h').get(k);
+    q.onsuccess = () => res(q.result || null);
+    q.onerror = () => res(null);
+  });
+}
+async function idbSet(k, v) {
+  const db = await idb();
+  return new Promise(res => {
+    const t = db.transaction('h', 'readwrite');
+    t.objectStore('h').put(v, k);
+    t.oncomplete = () => res();
+    t.onerror = () => res();
+  });
+}
+
+async function pickBackupDir() {
+  const h = await window.showDirectoryPicker({ id: 'pellet-backup', mode: 'readwrite' });
+  await idbSet('dir', h);
+  showToast('✓ Cartella: ' + h.name);
+  return h;
+}
+
+async function getBackupDir(askIfMissing) {
+  if (!FS_OK) return null;
+  let h = null;
+  try { h = await idbGet('dir'); } catch (e) {}
+  if (!h && askIfMissing) h = await pickBackupDir();
+  if (!h) return null;
+  let perm = await h.queryPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') perm = await h.requestPermission({ mode: 'readwrite' });
+  return perm === 'granted' ? h : null;
+}
+
+function backupFileName() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `consumi-pellet-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+}
+
+function downloadBackup(text, name) {
+  const blob = new Blob([text], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function exportBackup() {
+  const payload = { app: 'consumi-pellet', version: 2, exported: new Date().toISOString(), state };
+  const text = JSON.stringify(payload, null, 2);
+  const name = backupFileName();
+  if (FS_OK) {
+    try {
+      const dir = await getBackupDir(true);
+      if (dir) {
+        const fh = await dir.getFileHandle(name, { create: true });
+        const w = await fh.createWritable();
+        await w.write(text);
+        await w.close();
+        showToast('✓ Backup salvato in ' + dir.name);
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // scelta cartella annullata
+    }
+  }
+  downloadBackup(text, name);   // telefono / browser senza accesso alle cartelle
+  showToast('✓ Backup scaricato');
+}
+
+function restoreFromText(text) {
+  try {
+    const data = JSON.parse(text);
+    const incoming = (data && data.state) ? data.state : data; // accetta anche un JSON "nudo"
+    const keys = Object.keys(incoming || {}).filter(k => /^\d{4}$/.test(k));
+    if (!keys.length) throw new Error('formato non valido');
+    if (!confirm('Ripristinare il backup? I dati attuali verranno sostituiti.')) return;
+    state = incoming;
+    ensureState();
+    saveState();
+    renderTabs();
+    renderMain();
+    showToast('✓ Backup ripristinato');
+  } catch (e) {
+    alert('File di backup non valido.');
+  }
+}
+
+async function startRestore() {
+  if ('showOpenFilePicker' in window) {
+    try {
+      let startIn;
+      try { startIn = await idbGet('dir') || undefined; } catch (e) {}
+      const [fh] = await window.showOpenFilePicker({
+        id: 'pellet-backup',
+        startIn,
+        types: [{ description: 'Backup JSON', accept: { 'application/json': ['.json'] } }]
+      });
+      restoreFromText(await (await fh.getFile()).text());
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  document.getElementById('restore-file').click();
+}
+
+function importBackup(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => restoreFromText(reader.result);
+  reader.readAsText(file);
+}
 
 renderTabs();
 renderMain();
+if (FS_OK) document.getElementById('btn-folder').style.display = '';
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
