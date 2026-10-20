@@ -1,3 +1,4 @@
+// Cambia questo numero solo se vuoi forzare la pulizia della cache vecchia.
 const CACHE_NAME = 'consumi-pellet-v3';
 const ASSETS = [
   './',
@@ -23,15 +24,20 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Network-first: prova sempre la rete, usa cache solo offline
+// Network-first: se online prende SEMPRE la versione aggiornata da GitHub
+// (e aggiorna la cache); se offline usa la copia in cache.
 self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return response;
+    fetch(req, { cache: 'no-cache' })
+      .then(res => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(req, copy));
+        }
+        return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
   );
 });

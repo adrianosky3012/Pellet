@@ -11,7 +11,6 @@
 <meta name="apple-mobile-web-app-title" content="Pellet">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap');
 
@@ -177,15 +176,10 @@
   input.narrow { width: 72px; }
 
   /* ── Monthly grid ── */
-  .scroll-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
   .months-grid {
     display: grid;
-    grid-template-columns: 160px repeat(6, minmax(90px, 1fr));
+    grid-template-columns: 160px repeat(6, 1fr);
     gap: 0;
-    min-width: 560px;
   }
   .mg-header {
     display: contents;
@@ -240,6 +234,15 @@
     background: var(--surface2);
     border-radius: 4px;
   }
+  .dg-header > div.cur-month {
+    background: #f5d90a;
+    color: #1a1a1a;
+    font-weight: 700;
+  }
+  .dg-row > .day-cell.cur-month {
+    background: rgba(245, 217, 10, 0.22);
+    border-radius: 4px;
+  }
   .dg-row { display: contents; }
   .dg-row > .day-num {
     text-align: center;
@@ -288,10 +291,9 @@
   /* ── Ore accensione ── */
   .orario-grid {
     display: grid;
-    grid-template-columns: 120px repeat(6, minmax(100px, 1fr));
+    grid-template-columns: 160px repeat(6, 1fr);
     gap: 4px;
     padding: 12px 16px;
-    min-width: 560px;
   }
   .orario-label {
     color: var(--muted);
@@ -314,10 +316,9 @@
   /* ── Gas section ── */
   .gas-grid {
     display: grid;
-    grid-template-columns: 150px repeat(6, minmax(90px, 1fr));
+    grid-template-columns: 180px repeat(6, 1fr);
     gap: 0;
     padding: 0;
-    min-width: 560px;
   }
   .gas-row { display: contents; }
   .gas-row > div {
@@ -425,6 +426,9 @@
 
   /* ── Responsive ── */
   @media (max-width: 600px) {
+    .months-grid { grid-template-columns: 110px repeat(6, 1fr); font-size: 11px; }
+    .gas-grid { grid-template-columns: 120px repeat(6, 1fr); font-size: 11px; }
+    .media-grid { grid-template-columns: 150px repeat(6, 1fr); }
     .stock-grid { grid-template-columns: 1fr 1fr; }
     .summary-bar { grid-template-columns: 1fr 1fr; }
   }
@@ -475,76 +479,6 @@
     word-break: break-word;
     line-height: 1.6;
   }
-
-  /* ── Toolbar (salva/carica/drive) ── */
-  .toolbar {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 10px 0 14px;
-    border-top: 1px solid var(--border);
-    margin-top: 8px;
-  }
-  .tbtn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    padding: 7px 13px;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .tbtn:hover { border-color: var(--accent); color: var(--accent); }
-  .tbtn.drive { border-color: #4285f4; color: #4285f4; }
-  .tbtn.drive:hover { background: rgba(66,133,244,0.1); }
-  .tbtn.export { border-color: var(--green); color: var(--green); }
-  .tbtn.export:hover { background: rgba(110,200,122,0.1); }
-  .tbtn.backup { border-color: var(--accent2); color: var(--accent2); }
-  .tbtn.backup:hover { background: rgba(232,113,74,0.1); }
-
-  /* ── Modal ── */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 500;
-  }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 400px;
-    width: 90%;
-  }
-  .modal h3 {
-    font-family: 'Fraunces', serif;
-    font-weight: 300;
-    color: var(--accent);
-    margin-bottom: 12px;
-    font-size: 18px;
-  }
-  .modal p { color: var(--muted); font-size: 12px; line-height: 1.6; margin-bottom: 16px; }
-  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-  .mbtn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    padding: 8px 16px;
-    transition: all 0.2s;
-  }
-  .mbtn.primary { border-color: var(--accent); color: var(--accent); }
-  .mbtn:hover { opacity: 0.8; }
 </style>
 </head>
 <body>
@@ -552,44 +486,14 @@
 <header>
   <div class="app-title">🔥 Consumi Pellet <span>— tracker spese invernali</span></div>
   <div class="tabs" id="tabs"></div>
-  <div class="toolbar">
-    <button class="tbtn export" onclick="exportJSON()">⬇ Esporta JSON</button>
-    <button class="tbtn import" onclick="document.getElementById('import-file').click()">⬆ Importa JSON</button>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
-    <button class="tbtn drive" onclick="showDriveModal()">☁ Google Drive</button>
-    <button class="tbtn backup" onclick="backupNow()">💾 Salva Backup</button>
-  </div>
 </header>
 
 <div class="main" id="main"></div>
 
 <div id="save-toast">✓ Salvato</div>
 
-<div id="drive-modal" class="modal-overlay" style="display:none">
-  <div class="modal">
-    <h3>☁ Google Drive</h3>
-    <p>Salva o carica i tuoi dati su Google Drive. Il file si chiamerà <strong>consumi_pellet.json</strong>.</p>
-    <div style="margin-bottom:14px">
-      <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Google OAuth Client ID</label>
-      <input id="drive-client-id" type="text"
-        style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:monospace;font-size:11px;padding:7px 10px;"
-        placeholder="xxxxx.apps.googleusercontent.com"
-        oninput="saveClientId(this.value)">
-      <div style="font-size:10px;color:var(--muted);margin-top:5px">
-        Il Client ID viene salvato localmente e non viene mai inviato a nessuno.
-      </div>
-    </div>
-    <div id="drive-status" style="font-size:12px;margin-bottom:12px;min-height:18px"></div>
-    <div class="modal-btns">
-      <button class="mbtn" onclick="hideDriveModal()">Chiudi</button>
-      <button class="mbtn primary" onclick="driveLoad()">⬇ Carica da Drive</button>
-      <button class="mbtn primary" onclick="driveSave()">⬆ Salva su Drive</button>
-    </div>
-  </div>
-</div>
-
 <script>
-const YEARS = [2027,2028,2029,2030,2031,2032,2033,2034];
+const YEARS = [2027,2028,2029,2030,2031,2032,2033,2034,2035,2036];
 const MONTHS = ['Ottobre','Novembre','Dicembre','Gennaio','Febbraio','Marzo'];
 const MONTH_DAYS = [31,30,31,31,28,31]; // days per month (Feb variable but start simple)
 
@@ -618,6 +522,18 @@ function defaultYear(y) {
 function buildDayMatrix() {
   // 6 months, each 31 slots
   return Array.from({length:6}, () => Array(31).fill(0));
+}
+
+// Indice del mese corrente (0=Ott ... 5=Mar) per la stagione y, oppure -1.
+// Convenzione: la scheda "2027" = inverno 2026/27 (Ott-Dic 2026, Gen-Mar 2027).
+function currentMonthIdx(y) {
+  const now = new Date();
+  const m = now.getMonth();      // 0 = gennaio
+  const yr = now.getFullYear();
+  let idx = -1, season = null;
+  if (m >= 9)      { idx = m - 9;  season = yr + 1; } // ott, nov, dic
+  else if (m <= 2) { idx = m + 3;  season = yr;     } // gen, feb, mar
+  return season === y ? idx : -1;
 }
 
 function isDayValid(monthIdx, dayIdx) {
@@ -800,13 +716,13 @@ function renderMain() {
             &nbsp;|&nbsp; prezzo medio: € ${fmt(((d.pelletAbete.sacchi*d.pelletAbete.prezzo)+(d.pelletMisto.sacchi*d.pelletMisto.prezzo))/Math.max(1,(parseInt(d.pelletAbete.sacchi)||0)+(parseInt(d.pelletMisto.sacchi)||0)))}/sacco
           </div>
         </div>
+        </div>
       </div>
     </div>
 
     <!-- Riepilogo mensile pellet -->
     <div class="section">
       <div class="section-head"><span class="dot p"></span> Riepilogo Mensile Pellet</div>
-      <div class="scroll-wrap">
       <div class="months-grid">
         <div class="mg-header">
           <div></div>
@@ -857,7 +773,6 @@ function renderMain() {
           ${c.months.map(m=>`<div>€ ${fmt(m.avgSpesaDay,2)}</div>`).join('')}
         </div>
       </div>
-      </div>
     </div>
 
     <!-- Griglia giornaliera sacchi -->
@@ -868,7 +783,7 @@ function renderMain() {
         <div class="day-grid" id="daygrid-${y}">
           <div class="dg-header">
             <div>GG</div>
-            ${MONTHS.map(m=>`<div>${m.substring(0,3)}</div>`).join('')}
+            ${MONTHS.map((m,mi)=>`<div class="${mi===currentMonthIdx(y)?'cur-month':''}">${m.substring(0,3)}</div>`).join('')}
           </div>
           ${buildDayGridRows(y, d)}
         </div>
@@ -878,7 +793,6 @@ function renderMain() {
     <!-- Ore accensione stufa -->
     <div class="section">
       <div class="section-head"><span class="dot p"></span> Orari Accensione Stufa</div>
-      <div class="scroll-wrap">
       <div class="orario-grid">
         <div class="orario-label">Fascia 1</div>
         ${MONTHS.map((_,mi) => `<input class="orario-input" type="text" value="${d.orari[mi]||''}"
@@ -889,13 +803,11 @@ function renderMain() {
           placeholder="es. 16:30-20:30"
           onchange="updateArrayField(${y},'orari2',${mi},this.value)">`).join('')}
       </div>
-      </div>
     </div>
 
     <!-- Gas -->
     <div class="section">
       <div class="section-head"><span class="dot g"></span> Consumi Gas ${y}</div>
-      <div class="scroll-wrap">
       <div class="gas-grid">
         <div class="gas-row">
           <div></div>
@@ -931,7 +843,6 @@ function renderMain() {
             return `<div style="padding:8px 10px;background:var(--surface2);color:var(--gas);text-align:center">€ ${fmt(tot)}</div>`;
           }).join('')}
         </div>
-      </div>
       </div>
     </div>
 
@@ -969,7 +880,7 @@ function buildDayGridRows(y, d) {
         const valid = isDayValid(mi, day);
         const checked = valid && d.days[mi][day] > 0 ? 'checked' : '';
         const disabled = !valid ? 'disabled' : '';
-        return `<div class="day-cell">
+        return `<div class="day-cell ${mi===currentMonthIdx(y)?'cur-month':''}">
           <input type="checkbox" class="day-cb" ${checked} ${disabled}
             onchange="toggleDay(${y},${mi},${day},this.checked)">
         </div>`;
@@ -1066,217 +977,6 @@ function updateCostRow(y, ri, key, val) {
   if (tbody) tbody.innerHTML = renderCostRows(y, d, c);
 }
 
-// ── Export / Import JSON ────────────────────────────────────────────────────
-function exportJSON() {
-  const json = JSON.stringify(state, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const date = new Date().toISOString().slice(0,10);
-  a.href = url;
-  a.download = `consumi_pellet_${date}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function backupNow() {
-  const json = JSON.stringify(state, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const now = new Date();
-  const ts = now.toISOString().slice(0,16).replace('T','_').replace(':','h').replace(':','m');
-  const filename = `backup_pellet_${ts}.json`;
-
-  // Prova il metodo moderno (funziona su Android Chrome)
-  if (window.showSaveFilePicker) {
-    window.showSaveFilePicker({
-      suggestedName: filename,
-      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
-    }).then(handle => handle.createWritable()).then(writable => {
-      writable.write(blob);
-      return writable.close();
-    }).then(() => {
-      showToast('💾 Backup salvato!');
-    }).catch(e => {
-      if (e.name !== 'AbortError') fallbackDownload(blob, filename);
-    });
-  } else {
-    fallbackDownload(blob, filename);
-  }
-}
-
-function fallbackDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('💾 Backup scaricato!');
-}
-
-function showToast(msg) {
-  const toast = document.getElementById('save-toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => {
-    toast.classList.remove('show');
-    toast.textContent = '✓ Salvato';
-  }, 2000);
-}
-
-function importJSON(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      // Validate: deve avere almeno una delle chiavi degli anni
-      const hasYear = YEARS.some(y => data[y]);
-      if (!hasYear) { alert('File non valido: nessun anno trovato.'); return; }
-      state = data;
-      // Fill missing years
-      YEARS.forEach(y => {
-        if (!state[y]) state[y] = defaultYear(y);
-      });
-      saveState();
-      renderMain();
-      alert('✓ Dati importati correttamente!');
-    } catch(err) {
-      alert('Errore nella lettura del file JSON.');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = ''; // reset input
-}
-
-// ── Google Drive ────────────────────────────────────────────────────────────
-const DRIVE_FILE_NAME = 'consumi_pellet.json';
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-
-let driveToken = null;
-
-function saveClientId(val) {
-  localStorage.setItem('drive_client_id', val.trim());
-  driveToken = null; // reset token se cambia ID
-}
-
-function getClientId() {
-  return localStorage.getItem('drive_client_id') || '';
-}
-
-function showDriveModal() {
-  document.getElementById('drive-modal').style.display = 'flex';
-  document.getElementById('drive-client-id').value = getClientId();
-  setDriveStatus('');
-}
-function hideDriveModal() {
-  document.getElementById('drive-modal').style.display = 'none';
-}
-function setDriveStatus(msg, color) {
-  const el = document.getElementById('drive-status');
-  el.textContent = msg;
-  el.style.color = color || 'var(--muted)';
-}
-
-async function getDriveToken() {
-  return new Promise((resolve, reject) => {
-    if (!window.google) {
-      reject(new Error('Google API non caricata. Riprova tra un secondo.'));
-      return;
-    }
-    const clientId = getClientId();
-    if (!clientId) {
-      reject(new Error('Inserisci il Client ID prima di continuare.'));
-      return;
-    }
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: DRIVE_SCOPE,
-      callback: (resp) => {
-        if (resp.error) reject(new Error(resp.error));
-        else resolve(resp.access_token);
-      }
-    });
-    client.requestAccessToken();
-  });
-}
-
-async function driveGetFileId(token) {
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}'+and+trashed=false&fields=files(id,name)`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const data = await res.json();
-  return data.files && data.files.length > 0 ? data.files[0].id : null;
-}
-
-async function driveSave() {
-  setDriveStatus('Connessione a Google...', 'var(--muted)');
-  try {
-    const token = driveToken || (driveToken = await getDriveToken());
-    setDriveStatus('Salvataggio...', 'var(--muted)');
-    const json = JSON.stringify(state, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const fileId = await driveGetFileId(token);
-    let url, method;
-    if (fileId) {
-      url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
-      method = 'PATCH';
-    } else {
-      // Create with metadata
-      const meta = new Blob([JSON.stringify({ name: DRIVE_FILE_NAME })], { type: 'application/json' });
-      const form = new FormData();
-      form.append('metadata', meta);
-      form.append('file', blob);
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form
-      });
-      const data = await res.json();
-      if (data.id) setDriveStatus('✓ Salvato su Drive!', 'var(--green)');
-      else setDriveStatus('Errore nel salvataggio.', 'var(--red)');
-      return;
-    }
-    const res = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: blob
-    });
-    if (res.ok) setDriveStatus('✓ Salvato su Drive!', 'var(--green)');
-    else setDriveStatus('Errore nel salvataggio.', 'var(--red)');
-  } catch(e) {
-    driveToken = null;
-    setDriveStatus('Errore: ' + e.message, 'var(--red)');
-  }
-}
-
-async function driveLoad() {
-  setDriveStatus('Connessione a Google...', 'var(--muted)');
-  try {
-    const token = driveToken || (driveToken = await getDriveToken());
-    setDriveStatus('Ricerca file...', 'var(--muted)');
-    const fileId = await driveGetFileId(token);
-    if (!fileId) { setDriveStatus('Nessun file trovato su Drive.', 'var(--pellet)'); return; }
-    setDriveStatus('Download...', 'var(--muted)');
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    const hasYear = YEARS.some(y => data[y]);
-    if (!hasYear) { setDriveStatus('File non valido.', 'var(--red)'); return; }
-    state = data;
-    YEARS.forEach(y => { if (!state[y]) state[y] = defaultYear(y); });
-    saveState();
-    renderMain();
-    setDriveStatus('✓ Dati caricati da Drive!', 'var(--green)');
-  } catch(e) {
-    driveToken = null;
-    setDriveStatus('Errore: ' + e.message, 'var(--red)');
-  }
-}
-
 // ── Init ────────────────────────────────────────────────────────────────────
 YEARS.forEach(y => {
   if (!state[y]) state[y] = defaultYear(y);
@@ -1296,8 +996,18 @@ renderMain();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  // Quando una nuova versione prende il controllo, ricarica una sola volta
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => reg.update())
+      .catch(() => {});
   });
 }
 </script>
