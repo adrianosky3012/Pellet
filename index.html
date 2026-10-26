@@ -471,6 +471,32 @@
   }
   #save-toast.show { opacity: 1; }
 
+  .today-avg {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .today-avg .ta-title {
+    width: 100%;
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .today-avg .ta-box {
+    flex: 1 1 140px;
+    background: rgba(245, 217, 10, 0.12);
+    border: 1px solid #f5d90a;
+    border-radius: 6px;
+    padding: 8px 12px;
+  }
+  .today-avg.season .ta-box {
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+  .today-avg .ta-label { font-size: 11px; color: var(--muted); }
+  .today-avg .ta-value { font-size: 18px; font-weight: 700; }
   .info-note {
     font-size: 11px;
     color: var(--muted);
@@ -664,7 +690,93 @@ function fmt(n, dec=2) {
   return (Math.round(n * 100)/100).toLocaleString('it-IT', {minimumFractionDigits:dec, maximumFractionDigits:dec});
 }
 
+// Media da inizio mese ad oggi (solo per la scheda dell'inverno in corso)
+function todayAvgHtml(y, d) {
+  const mi = currentMonthIdx(y);
+  if (mi < 0) return '';
+  const today = new Date().getDate();            // giorni trascorsi, oggi compreso
+  let n = 0;
+  for (let di = 0; di < today && di < 31; di++) {
+    if (isDayValid(mi, di) && d.days[mi][di] > 0) n++;
+  }
+  const kg = n * 15;
+  const spesa = n * (parseFloat(d.costoPellet) || 0);
+  return `
+      <div class="today-avg">
+        <div class="ta-title">${MONTHS[mi]} · dal 1 al ${today} (${today} giorni, ${n} sacchi = ${kg} kg)</div>
+        <div class="ta-box">
+          <div class="ta-label">Media kg/giorno da inizio mese</div>
+          <div class="ta-value">${fmt(kg / today, 2)} kg</div>
+        </div>
+        <div class="ta-box">
+          <div class="ta-label">Media €/giorno da inizio mese</div>
+          <div class="ta-value">€ ${fmt(spesa / today, 2)}</div>
+        </div>
+      </div>`;
+}
+
+// Media sull'intero periodo ottobre-marzo:
+//  - stagione in corso: dal 1 ottobre a oggi
+//  - stagione conclusa: tutti i 182 giorni
+//  - stagione futura: nessun valore
+function seasonAvgHtml(y, d) {
+  const now = new Date();
+  const start = new Date(y - 1, 9, 1);
+  const end = new Date(y, 2, 31, 23, 59, 59);
+  const dim = [31,30,31,31,28,31];
+  const totalDays = dim.reduce((a, b) => a + b, 0);   // 182
+  const label = seasonLabel(y);
+
+  if (now < start) {
+    return `
+      <div class="today-avg season">
+        <div class="ta-title">Stagione ${label} · non ancora iniziata</div>
+        <div class="ta-box"><div class="ta-label">Media kg/giorno ottobre–marzo</div><div class="ta-value">—</div></div>
+        <div class="ta-box"><div class="ta-label">Media €/giorno ottobre–marzo</div><div class="ta-value">—</div></div>
+      </div>`;
+  }
+
+  const complete = now > end;
+  const curMi = complete ? 5 : currentMonthIdx(y);
+  const today = now.getDate();
+  let elapsed = 0, n = 0;
+  for (let mi = 0; mi < 6; mi++) {
+    for (let di = 0; di < dim[mi]; di++) {
+      const included = complete || mi < curMi || (mi === curMi && di < today);
+      if (!included) continue;
+      elapsed++;
+      if (d.days[mi][di] > 0) n++;
+    }
+  }
+  const kg = n * 15;
+  const spesa = n * (parseFloat(d.costoPellet) || 0);
+  const periodo = complete
+    ? `stagione completa, ${totalDays} giorni`
+    : `dal 1 ottobre a oggi, ${elapsed} giorni`;
+  return `
+      <div class="today-avg season">
+        <div class="ta-title">Stagione ${label} · ${periodo} (${n} sacchi = ${kg} kg)</div>
+        <div class="ta-box">
+          <div class="ta-label">Media kg/giorno ottobre–marzo</div>
+          <div class="ta-value">${fmt(kg / elapsed, 2)} kg</div>
+        </div>
+        <div class="ta-box">
+          <div class="ta-label">Media €/giorno ottobre–marzo</div>
+          <div class="ta-value">€ ${fmt(spesa / elapsed, 2)}</div>
+        </div>
+      </div>`;
+}
+
+// Aggiorna da solo se l'app viene riaperta/ripresa il giorno dopo
+let lastRenderDay = '';
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && lastRenderDay && new Date().toDateString() !== lastRenderDay) {
+    renderMain();
+  }
+});
+
 function renderMain() {
+  lastRenderDay = new Date().toDateString();
   const y = activeYear;
   const d = state[y];
   const c = calcYear(y);
@@ -806,6 +918,8 @@ function renderMain() {
           ${c.months.map(m=>`<div>€ ${fmt(m.avgSpesaDay,2)}</div>`).join('')}
         </div>
       </div>
+      ${todayAvgHtml(y, d)}
+      ${seasonAvgHtml(y, d)}
     </div>
 
     <!-- Griglia giornaliera sacchi -->
@@ -1086,7 +1200,22 @@ async function getBackupDir(askIfMissing) {
 function backupFileName() {
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
-  return `consumi-pellet-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  return `consumi-pellet-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+}
+
+// Tiene solo gli ultimi MAX_BACKUPS file di backup nella cartella (cancella i più vecchi)
+const MAX_BACKUPS = 3;
+async function pruneBackups(dir, keepName) {
+  const names = [];
+  for await (const [name, handle] of dir.entries()) {
+    if (handle.kind === 'file' && /^consumi-pellet-backup.*\.json$/i.test(name)) names.push(name);
+  }
+  names.sort();                       // data (e ora) nel nome => ordine cronologico
+  while (names.length > MAX_BACKUPS) {
+    const oldest = names.shift();
+    if (oldest === keepName) continue;
+    await dir.removeEntry(oldest);
+  }
 }
 
 function downloadBackup(text, name) {
@@ -1112,7 +1241,8 @@ async function exportBackup() {
         const w = await fh.createWritable();
         await w.write(text);
         await w.close();
-        showToast('✓ Backup salvato in ' + dir.name);
+        try { await pruneBackups(dir, name); } catch (e) {}
+        showToast('✓ Backup salvato (ultimi ' + MAX_BACKUPS + ' in ' + dir.name + ')');
         return;
       }
     } catch (e) {
