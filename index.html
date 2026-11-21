@@ -563,6 +563,7 @@ function defaultYear(y) {
     gas: {
       pagare: [0,0,0,0,0,0],
       smc:    [0,0,0,0,0,0],
+      smcSanMese: 15,
     },
     orari: ['','','','','',''],
     orari2: ['','','','','',''],
@@ -650,6 +651,23 @@ function calcYear(y) {
   const totalGasSpesa = d.gas.pagare.reduce((a,b) => a + (parseFloat(b)||0), 0);
   const totalSpese = totalPelletSpesa + totalGasSpesa;
 
+  // gas: quota sanitari (smc/mese) da detrarre dal riscaldamento.
+  // Costo al smc del mese = totale da pagare / smc fatturati; si detrae solo
+  // nei mesi con bolletta inserita (smc > 0).
+  const gasMonths = MONTHS.map((_, mi) => {
+    const p = parseFloat(d.gas.pagare[mi]) || 0;
+    const s = parseFloat(d.gas.smc[mi]) || 0;
+    const sanIn = parseFloat(d.gas.smcSanMese);
+    const san = isNaN(sanIn) ? 0 : sanIn;
+    const costoSmc = s > 0 ? p / s : 0;
+    const sanSmc = s > 0 ? Math.min(san, s) : 0;
+    const spesaSan = sanSmc * costoSmc;
+    return { spesaSan, spesaRisc: p - spesaSan };
+  });
+  const totalGasSan = gasMonths.reduce((a, m) => a + m.spesaSan, 0);
+  const totalGasRisc = totalGasSpesa - totalGasSan;
+  const totalSpeseNonSan = totalPelletSpesa + totalGasRisc;
+
   // stock
   const totalStock = (parseInt(d.pelletAbete.sacchi)||0) + (parseInt(d.pelletMisto.sacchi)||0);
   const sacchiDisp = totalStock - totalPelletSacchi;
@@ -663,7 +681,8 @@ function calcYear(y) {
   const costsSum = costsRows.slice(0,5).reduce((s,r) => s + r.spesa, 0);
 
   return { months, totalPelletSacchi, totalPelletKg, totalPelletSpesa,
-           totalGasSpesa, totalSpese, sacchiDisp, totalStock, costsRows, costsSum };
+           totalGasSpesa, totalSpese, sacchiDisp, totalStock, costsRows, costsSum,
+           gasMonths, totalGasSan, totalGasRisc, totalSpeseNonSan };
 }
 
 // ── Render ──────────────────────────────────────────────────────────────────
@@ -788,6 +807,10 @@ function renderMain() {
       <div class="scard">
         <div class="scard-label">Spese Totali ${seasonLabel(y)}</div>
         <div class="scard-val total">€ ${fmt(c.totalSpese)}</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Spese Totali non sanitari</div>
+        <div class="scard-val total">€ ${fmt(c.totalSpeseNonSan)}</div>
       </div>
       <div class="scard">
         <div class="scard-label">Totale Pellet</div>
@@ -952,6 +975,18 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Sanitari -->
+    <div class="section">
+      <div class="section-head"><span class="dot g"></span> Gas sanitari ${seasonLabel(y)}</div>
+      <div class="pellet-config">
+        <div class="config-group">
+          <label>Smc sanitari al mese (da detrarre dal riscaldamento)</label>
+          <input type="number" step="0.1" min="0" value="${d.gas.smcSanMese ?? 15}"
+            onchange="updateSmcSan(${y}, parseFloat(this.value))">
+        </div>
+      </div>
+    </div>
+
     <!-- Gas -->
     <div class="section">
       <div class="section-head"><span class="dot g"></span> Consumi Gas ${seasonLabel(y)}</div>
@@ -983,12 +1018,20 @@ function renderMain() {
             return `<div class="gas-calc">${fmt(costo,4)}</div>`;
           }).join('')}
         </div>
+        <div class="gas-row">
+          <div>Sanitari (€)</div>
+          ${c.gasMonths.map(m=>`<div class="gas-calc">€ ${fmt(m.spesaSan)}</div>`).join('')}
+        </div>
         <div class="mg-row total" style="display:contents">
           <div style="padding:8px 10px;background:var(--surface2);font-size:11px;color:var(--muted)">Totale Gas</div>
           ${MONTHS.map((_,mi)=>{
             const tot = parseFloat(d.gas.pagare[mi])||0;
             return `<div style="padding:8px 10px;background:var(--surface2);color:var(--gas);text-align:center">€ ${fmt(tot)}</div>`;
           }).join('')}
+        </div>
+        <div class="mg-row total" style="display:contents">
+          <div style="padding:8px 10px;background:var(--surface2);font-size:11px;color:var(--muted)">Riscaldamento (€)</div>
+          ${c.gasMonths.map(m=>`<div style="padding:8px 10px;background:var(--surface2);color:var(--gas);text-align:center;font-weight:700">€ ${fmt(m.spesaRisc)}</div>`).join('')}
         </div>
       </div>
     </div>
@@ -1079,6 +1122,12 @@ function updateArrayField(y, arr, idx, val) {
   saveState();
 }
 
+function updateSmcSan(y, val) {
+  state[y].gas.smcSanMese = (isNaN(val) || val < 0) ? 0 : val;
+  saveState();
+  renderMain();
+}
+
 function updateGas(y, field, mi, val) {
   state[y].gas[field][mi] = val;
   saveState();
@@ -1131,6 +1180,7 @@ YEARS.forEach(y => {
   // Ensure all required fields exist (backward compat)
   if (!state[y].days) state[y].days = buildDayMatrix();
   if (!state[y].gas) state[y].gas = { pagare:[0,0,0,0,0,0], smc:[0,0,0,0,0,0] };
+  if (state[y].gas.smcSanMese === undefined) state[y].gas.smcSanMese = 15;
   if (!state[y].orari) state[y].orari = ['','','','','',''];
   if (!state[y].orari2) state[y].orari2 = ['','','','','',''];
   if (!state[y].costsRows) state[y].costsRows = [];
