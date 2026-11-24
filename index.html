@@ -303,6 +303,30 @@
     opacity: 0.2;
     cursor: not-allowed;
   }
+  .day-btn {
+    width: 22px; height: 22px;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: #0f1117;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: all 0.15s;
+  }
+  .day-btn.v1, .day-btn.v2, .day-btn.v3 {
+    background: var(--pellet);
+    border-color: var(--pellet);
+  }
+  .day-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+  }
 
   /* ── Ore accensione ── */
   .orario-grid {
@@ -628,9 +652,10 @@ function calcYear(y) {
     let cnt1 = 0, cnt2 = 0, cntTotal = 0;
     for (let di=0; di<31; di++) {
       if (!isDayValid(mi,di)) continue;
-      if (col[di] > 0) {
-        cntTotal++;
-        if (di < 15) cnt1++; else cnt2++;
+      const v = Math.max(0, parseInt(col[di]) || 0);   // sacchi quel giorno
+      if (v > 0) {
+        cntTotal += v;
+        if (di < 15) cnt1 += v; else cnt2 += v;
       }
     }
     const kg1 = cnt1 * 15;
@@ -716,7 +741,7 @@ function todayAvgHtml(y, d) {
   const today = new Date().getDate();            // giorni trascorsi, oggi compreso
   let n = 0;
   for (let di = 0; di < today && di < 31; di++) {
-    if (isDayValid(mi, di) && d.days[mi][di] > 0) n++;
+    if (isDayValid(mi, di)) n += Math.max(0, parseInt(d.days[mi][di]) || 0);
   }
   const kg = n * 15;
   const spesa = n * (parseFloat(d.costoPellet) || 0);
@@ -764,7 +789,7 @@ function seasonAvgHtml(y, d) {
       const included = complete || mi < curMi || (mi === curMi && di < today);
       if (!included) continue;
       elapsed++;
-      if (d.days[mi][di] > 0) n++;
+      n += Math.max(0, parseInt(d.days[mi][di]) || 0);
     }
   }
   const kg = n * 15;
@@ -948,7 +973,7 @@ function renderMain() {
     <!-- Griglia giornaliera sacchi -->
     <div class="section">
       <div class="section-head"><span class="dot p"></span> Registro Giornaliero Sacchi Pellet</div>
-      <div class="info-note">✓ = sacco usato quel giorno (1 sacco = 15 kg)</div>
+      <div class="info-note">Tocca per segnare i sacchi usati: 1 tocco = 1 sacco (✓), 2 tocchi = 2 sacchi, 3 tocchi = 3 sacchi, un altro tocco azzera (1 sacco = 15 kg)</div>
       <div class="day-grid-wrap">
         <div class="day-grid" id="daygrid-${y}">
           <div class="dg-header">
@@ -1068,11 +1093,12 @@ function buildDayGridRows(y, d) {
       <div class="day-num">${day+1}</div>
       ${MONTHS.map((_,mi) => {
         const valid = isDayValid(mi, day);
-        const checked = valid && d.days[mi][day] > 0 ? 'checked' : '';
+        const v = valid ? Math.max(0, parseInt(d.days[mi][day]) || 0) : 0;
+        const label = v === 0 ? '' : (v === 1 ? '✓' : String(v));
         const disabled = !valid ? 'disabled' : '';
         return `<div class="day-cell ${mi===currentMonthIdx(y)?'cur-month':''}">
-          <input type="checkbox" class="day-cb" ${checked} ${disabled}
-            onchange="toggleDay(${y},${mi},${day},this.checked)">
+          <button type="button" class="day-btn v${Math.min(v,3)}" ${disabled}
+            onclick="cycleDay(${y},${mi},${day})">${label}</button>
         </div>`;
       }).join('')}
     </div>`;
@@ -1134,8 +1160,10 @@ function updateGas(y, field, mi, val) {
   renderMain();
 }
 
-function toggleDay(y, mi, day, checked) {
-  state[y].days[mi][day] = checked ? 1 : 0;
+const MAX_SACCHI_GIORNO = 3;
+function cycleDay(y, mi, day) {
+  const cur = Math.max(0, parseInt(state[y].days[mi][day]) || 0);
+  state[y].days[mi][day] = (cur + 1) % (MAX_SACCHI_GIORNO + 1);
   saveState();
   // Update summary only (avoid full re-render which resets checkboxes)
   const c = calcYear(y);
